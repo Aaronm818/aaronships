@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM AI Bot — Concentrix AI PM Assistant</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #21262d;
+    --teal: #00b4d8;
+    --teal-dim: #0077a8;
+    --teal-glow: rgba(0,180,216,0.18);
+    --cyan: #48cae4;
+    --cyan-soft: rgba(72,202,228,0.12);
+    --green: #3fb950;
+    --green-glow: rgba(63,185,80,0.2);
+    --yellow: #d29922;
+    --red: #f85149;
+    --white: #e6edf3;
+    --muted: #8b949e;
+    --dim: #484f58;
+    --sidebar-w: 220px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--white); font-size:13px; }
+  body { display:flex; flex-direction:column; overflow:hidden; }
+
+  /* ── Top bar ── */
+  .topbar {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 16px; background:var(--surface);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .topbar-logo { font-size:15px; font-weight:700; color:var(--teal); letter-spacing:.5px; }
+  .topbar-logo span { color:var(--white); }
+  .topbar-badge {
+    margin-left:auto; padding:3px 10px; border-radius:20px;
+    background:var(--cyan-soft); border:1px solid var(--teal-dim);
+    font-size:10px; color:var(--cyan); letter-spacing:.5px; text-transform:uppercase;
+  }
+  .back-link {
+    font-size:11px; color:var(--muted); text-decoration:none;
+    padding:4px 8px; border:1px solid var(--border); border-radius:4px;
+    transition:all .2s;
+  }
+  .back-link:hover { color:var(--teal); border-color:var(--teal-dim); }
+
+  /* ── Shell ── */
+  .shell { display:flex; flex:1; overflow:hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width:var(--sidebar-w); background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto;
+  }
+  .sidebar-section { padding:12px 0; }
+  .sidebar-label {
+    padding:4px 14px; font-size:10px; font-weight:600; color:var(--dim);
+    text-transform:uppercase; letter-spacing:.8px;
+  }
+  .nav-item {
+    display:flex; align-items:center; gap:9px;
+    padding:9px 14px; cursor:pointer; color:var(--muted); transition:all .2s;
+    border-left:3px solid transparent; font-size:12.5px;
+  }
+  .nav-item:hover { color:var(--white); background:rgba(255,255,255,.04); }
+  .nav-item.active {
+    color:var(--cyan); background:var(--cyan-soft);
+    border-left-color:var(--teal);
+  }
+  .nav-icon { font-size:14px; width:18px; text-align:center; }
+
+  .sidebar-status { margin-top:auto; padding:12px 14px; border-top:1px solid var(--border); }
+  .status-row { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--muted); margin-bottom:6px; }
+  .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .dot-green { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .dot-yellow { background:var(--yellow); }
+  .dot-red { background:var(--red); }
+  .dot-gray { background:var(--dim); }
+
+  /* ── Main ── */
+  .main { flex:1; overflow-y:auto; display:flex; gap:14px; padding:14px; }
+
+  /* ── Left column ── */
+  .col-left { flex:1; display:flex; flex-direction:column; gap:14px; }
+
+  /* ── Right column ── */
+  .col-right { width:280px; display:flex; flex-direction:column; gap:14px; flex-shrink:0; }
+
+  /* ── Panel ── */
+  .panel {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;
+  }
+  .panel-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border);
+  }
+  .panel-title {
+    font-size:11px; font-weight:600; color:var(--white); text-transform:uppercase;
+    letter-spacing:.7px; display:flex; align-items:center; gap:7px;
+  }
+  .panel-body { padding:14px; }
+
+  /* ── Connection panel ── */
+  .url-row { display:flex; gap:8px; margin-bottom:12px; }
+  .url-input {
+    flex:1; background:var(--bg); border:1px solid var(--border); border-radius:5px;
+    color:var(--white); padding:7px 10px; font-size:12px; outline:none;
+    transition:border-color .2s;
+  }
+  .url-input:focus { border-color:var(--teal-dim); }
+  .btn {
+    padding:7px 14px; border:none; border-radius:5px; cursor:pointer;
+    font-size:12px; font-weight:600; transition:all .2s; white-space:nowrap;
+  }
+  .btn-teal { background:var(--teal-dim); color:#fff; }
+  .btn-teal:hover { background:var(--teal); box-shadow:0 0 12px var(--teal-glow); }
+  .btn-teal:active { transform:scale(.97); }
+  .btn-green { background:#1a4731; color:var(--green); border:1px solid var(--green); }
+  .btn-green:hover { background:var(--green); color:#000; box-shadow:0 0 12px var(--green-glow); }
+  .btn-red { background:#3d1a1a; color:var(--red); border:1px solid var(--red); }
+  .btn-red:hover { background:var(--red); color:#fff; }
+  .btn-sm { padding:5px 10px; font-size:11px; }
+  .btn-disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
+
+  .conn-status {
+    display:flex; align-items:center; gap:8px; padding:8px 10px;
+    background:var(--bg); border-radius:5px; border:1px solid var(--border);
+  }
+  .conn-label { font-size:11px; color:var(--muted); }
+  .conn-value { font-size:11px; font-weight:600; margin-left:auto; }
+  .text-green { color:var(--green); }
+  .text-yellow { color:var(--yellow); }
+  .text-red { color:var(--red); }
+  .text-muted { color:var(--muted); }
+
+  /* ── Screen capture ── */
+  .capture-preview {
+    width:100%; aspect-ratio:16/9; background:var(--bg); border:1px solid var(--border);
+    border-radius:6px; display:flex; align-items:center; justify-content:center;
+    position:relative; overflow:hidden; margin-bottom:10px;
+  }
+  .capture-placeholder { color:var(--dim); font-size:11px; text-align:center; }
+  .capture-active-overlay {
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(0,180,216,.07);
+  }
+  .capture-active-overlay.show { display:flex; }
+  .pulse-ring {
+    width:20px; height:20px; border-radius:50%; border:3px solid var(--teal);
+    animation:pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { transform:scale(1); opacity:1; }
+    50% { transform:scale(1.5); opacity:.4; }
+  }
+  .capture-btns { display:flex; gap:8px; }
+
+  /* ── Activity log ── */
+  .log-list { max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .log-entry {
+    display:flex; gap:8px; align-items:flex-start; padding:5px 8px;
+    background:var(--bg); border-radius:4px; border-left:3px solid var(--dim);
+    font-size:11px;
+  }
+  .log-entry.info { border-left-color:var(--teal); }
+  .log-entry.success { border-left-color:var(--green); }
+  .log-entry.warn { border-left-color:var(--yellow); }
+  .log-time { color:var(--dim); flex-shrink:0; font-size:10px; font-family:monospace; }
+  .log-msg { color:var(--muted); line-height:1.4; }
+  .log-msg strong { color:var(--white); font-weight:500; }
+
+  /* ── Vision Analysis ── */
+  .vision-screen {
+    width:100%; aspect-ratio:16/9; background:var(--bg); border:1px solid var(--border);
+    border-radius:6px; display:flex; align-items:center; justify-content:center;
+    margin-bottom:10px; overflow:hidden; position:relative;
+  }
+  .vision-idle { color:var(--dim); font-size:11px; text-align:center; }
+  .vision-result { display:none; width:100%; height:100%; padding:10px; overflow-y:auto; }
+  .vision-result.show { display:block; }
+  .vision-chip {
+    display:inline-block; padding:2px 8px; border-radius:12px; font-size:10px;
+    margin:2px; background:var(--cyan-soft); border:1px solid var(--teal-dim); color:var(--cyan);
+  }
+  .vision-section { margin-bottom:8px; }
+  .vision-section-title { font-size:10px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+  .vision-text { font-size:11px; color:var(--white); line-height:1.5; }
+
+  /* ── Settings ── */
+  .setting-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 0; border-bottom:1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom:none; }
+  .setting-label { font-size:12px; color:var(--white); }
+  .setting-desc { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* Toggle */
+  .toggle { position:relative; width:36px; height:20px; flex-shrink:0; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-track {
+    position:absolute; inset:0; background:var(--dim); border-radius:20px;
+    cursor:pointer; transition:background .2s;
+  }
+  .toggle input:checked + .toggle-track { background:var(--teal-dim); }
+  .toggle-thumb {
+    position:absolute; top:3px; left:3px; width:14px; height:14px;
+    background:#fff; border-radius:50%; transition:transform .2s; pointer-events:none;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform:translateX(16px); }
+
+  /* Select */
+  .select-input {
+    background:var(--bg); border:1px solid var(--border); border-radius:4px;
+    color:var(--white); padding:5px 8px; font-size:11px; outline:none;
+    cursor:pointer;
+  }
+  .select-input:focus { border-color:var(--teal-dim); }
+
+  /* ── Toast ── */
+  .toast-area { position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:999; }
+  .toast {
+    padding:10px 16px; border-radius:6px; font-size:12px; font-weight:500;
+    border-left:3px solid; animation:slideIn .25s ease; max-width:280px;
+    box-shadow:0 4px 12px rgba(0,0,0,.4);
+  }
+  .toast-info { background:#1a2433; border-left-color:var(--teal); color:var(--cyan); }
+  .toast-success { background:#1a3328; border-left-color:var(--green); color:var(--green); }
+  .toast-warn { background:#332500; border-left-color:var(--yellow); color:var(--yellow); }
+  @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes slideOut { from { opacity:1; } to { opacity:0; transform:translateX(20px); } }
+  .toast.out { animation:slideOut .25s ease forwards; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--dim); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">PM<span>AI Bot</span></div>
+  <a href="../index.html#projects" class="back-link">← Portfolio</a>
+  <div class="topbar-badge">Concentrix Internal Tool</div>
+</div>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <div class="nav-item" onclick="setNav(this,'dash')">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item active" id="nav-pmmanager" onclick="setNav(this,'pm')">
+        <span class="nav-icon">🎙️</span> PM Manager
+      </div>
+      <div class="nav-item" onclick="setNav(this,'monitor')">
+        <span class="nav-icon">👁️</span> AI Monitor
+      </div>
+      <div class="nav-item" onclick="setNav(this,'workspace')">
+        <span class="nav-icon">🗂️</span> Workspace
+      </div>
+      <div class="nav-item" onclick="setNav(this,'connections')">
+        <span class="nav-icon">🔗</span> Connections
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Status</div>
+      <div class="status-row">
+        <div class="dot dot-gray" id="dot-teams"></div>
+        <span id="label-teams">Teams: Offline</span>
+      </div>
+      <div class="status-row">
+        <div class="dot dot-gray" id="dot-openai"></div>
+        <span id="label-openai">OpenAI: Idle</span>
+      </div>
+      <div class="status-row">
+        <div class="dot dot-gray" id="dot-capture"></div>
+        <span id="label-capture">Capture: Stopped</span>
+      </div>
+      <div class="status-row">
+        <div class="dot dot-gray" id="dot-dataverse"></div>
+        <span id="label-dataverse">Dataverse: —</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Left column -->
+    <div class="col-left">
+
+      <!-- Connection Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔗 Teams Connection</div>
+          <span id="conn-badge" style="font-size:10px;color:var(--dim);">DISCONNECTED</span>
+        </div>
+        <div class="panel-body">
+          <div class="url-row">
+            <input class="url-input" id="meeting-url" type="text"
+              placeholder="Paste Teams meeting URL…"
+              value="https://teams.microsoft.com/l/meetup-join/19%3A…">
+            <button class="btn btn-teal" id="btn-connect" onclick="handleConnect()">Connect</button>
+          </div>
+          <div class="conn-status">
+            <div class="dot dot-gray" id="dot-status"></div>
+            <span class="conn-label">Connection Status</span>
+            <span class="conn-value text-muted" id="conn-status-val">Not connected</span>
+          </div>
+          <div class="conn-status" style="margin-top:6px;">
+            <span class="conn-label">WebRTC Peer</span>
+            <span class="conn-value text-muted" id="webrtc-val">—</span>
+          </div>
+          <div class="conn-status" style="margin-top:6px;">
+            <span class="conn-label">Audio Stream</span>
+            <span class="conn-value text-muted" id="audio-val">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen Capture -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📸 Screen Capture</div>
+          <span id="capture-status-label" style="font-size:10px;color:var(--dim);">IDLE</span>
+        </div>
+        <div class="panel-body">
+          <div class="capture-preview">
+            <div class="capture-placeholder" id="capture-placeholder">
+              🖥️<br><span>No capture active</span>
+            </div>
+            <div class="capture-active-overlay" id="capture-overlay">
+              <div class="pulse-ring"></div>
+            </div>
+          </div>
+          <div class="capture-btns">
+            <button class="btn btn-green btn-sm" id="btn-start" onclick="startCapture()">▶ Start Capture</button>
+            <button class="btn btn-red btn-sm btn-disabled" id="btn-stop" onclick="stopCapture()">■ Stop</button>
+            <button class="btn btn-sm" id="btn-analyze" onclick="triggerAnalysis()"
+              style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);margin-left:auto;">
+              🔍 Analyze Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="panel" style="flex:1;">
+        <div class="panel-header">
+          <div class="panel-title">📋 Activity Log</div>
+          <button onclick="clearLog()" style="font-size:10px;color:var(--dim);background:none;border:none;cursor:pointer;">Clear</button>
+        </div>
+        <div class="panel-body">
+          <div class="log-list" id="log-list">
+            <div class="log-entry">
+              <span class="log-time">00:00:00</span>
+              <span class="log-msg">PM AI Bot initialized. Ready for meeting connection.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column -->
+    <div class="col-right">
+
+      <!-- Vision Analysis -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">👁️ Vision Analysis</div>
+          <span id="vision-freq" style="font-size:10px;color:var(--dim);">EVERY 5s</span>
+        </div>
+        <div class="panel-body">
+          <div class="vision-screen">
+            <div class="vision-idle" id="vision-idle">
+              No analysis yet.<br>Start capture to begin.
+            </div>
+            <div class="vision-result" id="vision-result">
+              <div class="vision-section">
+                <div class="vision-section-title">Detected Topics</div>
+                <span class="vision-chip">Sprint Planning</span>
+                <span class="vision-chip">Q1 Roadmap</span>
+                <span class="vision-chip">Backlog</span>
+              </div>
+              <div class="vision-section">
+                <div class="vision-section-title">Action Items</div>
+                <div class="vision-text">• Finalize API design by Friday<br>• Schedule QA review<br>• Update Dataverse project tracker</div>
+              </div>
+              <div class="vision-section">
+                <div class="vision-section-title">Screen Context</div>
+                <div class="vision-text">Shared Jira board visible. Sprint 12 active with 8 open items.</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);text-align:center;" id="vision-ts">Waiting for capture…</div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">⚙️ Settings</div>
+        </div>
+        <div class="panel-body" style="padding:10px 14px;">
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Auto-analyze</div>
+              <div class="setting-desc">Analyze every 5 seconds</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-auto" checked onchange="toggleAutoAnalyze(this)">
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Wake Word</div>
+              <div class="setting-desc">Voice activation phrase</div>
+            </div>
+            <select class="select-input" id="sel-wake" onchange="changeWakeWord(this)">
+              <option>Hey PM</option>
+              <option>Project Manager</option>
+              <option>PM Bot</option>
+              <option>Hey Assistant</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Vision Model</div>
+              <div class="setting-desc">Screen analysis engine</div>
+            </div>
+            <select class="select-input" id="sel-model" onchange="changeModel(this)">
+              <option>GPT-4o</option>
+              <option>GPT-4o-mini</option>
+              <option>GPT-4 Turbo</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Dataverse Sync</div>
+              <div class="setting-desc">Auto-push action items</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-dv" onchange="toggleDataverse(this)">
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast area -->
+<div class="toast-area" id="toast-area"></div>
+
+<script>
+  /* ── State ── */
+  const state = {
+    connected: false,
+    capturing: false,
+    autoAnalyze: true,
+    analyzeTimer: null,
+    analysisCount: 0,
+    startTime: null,
+  };
+
+  /* ── Nav ── */
+  function setNav(el, section) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    if (section !== 'pm') toast('Navigating to ' + el.textContent.trim(), 'info');
+  }
+
+  /* ── Connect ── */
+  function handleConnect() {
+    const url = document.getElementById('meeting-url').value.trim();
+    if (!url) { toast('Enter a meeting URL first', 'warn'); return; }
+
+    if (!state.connected) {
+      const btn = document.getElementById('btn-connect');
+      btn.textContent = 'Connecting…';
+      btn.style.opacity = '.6';
+      btn.style.pointerEvents = 'none';
+
+      addLog('Initiating WebRTC handshake…', 'info');
+
+      setTimeout(() => {
+        setState('connecting');
+        addLog('WebRTC peer connected. Audio stream active.', 'info');
+      }, 800);
+
+      setTimeout(() => {
+        setState('connected');
+        addLog('Teams connection established. Wake word "' + document.getElementById('sel-wake').value + '" active.', 'success');
+        toast('Connected to Teams meeting', 'success');
+      }, 1800);
+
+    } else {
+      disconnect();
+    }
+  }
+
+  function setState(s) {
+    const connBadge = document.getElementById('conn-badge');
+    const dotStatus = document.getElementById('dot-status');
+    const connVal = document.getElementById('conn-status-val');
+    const btn = document.getElementById('btn-connect');
+
+    if (s === 'connecting') {
+      dotStatus.className = 'dot dot-yellow';
+      connVal.textContent = 'Connecting…'; connVal.className = 'conn-value text-yellow';
+      document.getElementById('webrtc-val').textContent = 'Handshaking…';
+      document.getElementById('audio-val').textContent = '—';
+      setDot('teams', 'yellow', 'Teams: Connecting…');
+      setDot('openai', 'yellow', 'OpenAI: Initializing…');
+    } else if (s === 'connected') {
+      state.connected = true;
+      connBadge.textContent = 'CONNECTED'; connBadge.style.color = 'var(--green)';
+      dotStatus.className = 'dot dot-green';
+      connVal.textContent = 'Connected'; connVal.className = 'conn-value text-green';
+      document.getElementById('webrtc-val').textContent = 'Active';
+      document.getElementById('webrtc-val').className = 'conn-value text-green';
+      document.getElementById('audio-val').textContent = '48 kHz · Stereo';
+      document.getElementById('audio-val').className = 'conn-value text-green';
+      btn.textContent = 'Disconnect'; btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto'; btn.style.background = 'var(--red)';
+      setDot('teams', 'green', 'Teams: Connected');
+      setDot('openai', 'green', 'OpenAI: Ready');
+      setDot('dataverse', 'yellow', 'Dataverse: Standby');
+    }
+  }
+
+  function disconnect() {
+    state.connected = false;
+    stopCapture();
+    const connBadge = document.getElementById('conn-badge');
+    connBadge.textContent = 'DISCONNECTED'; connBadge.style.color = 'var(--dim)';
+    const dotStatus = document.getElementById('dot-status');
+    dotStatus.className = 'dot dot-gray';
+    document.getElementById('conn-status-val').textContent = 'Not connected';
+    document.getElementById('conn-status-val').className = 'conn-value text-muted';
+    document.getElementById('webrtc-val').textContent = '—';
+    document.getElementById('webrtc-val').className = 'conn-value text-muted';
+    document.getElementById('audio-val').textContent = '—';
+    document.getElementById('audio-val').className = 'conn-value text-muted';
+    const btn = document.getElementById('btn-connect');
+    btn.textContent = 'Connect'; btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto'; btn.style.background = '';
+    setDot('teams', 'gray', 'Teams: Offline');
+    setDot('openai', 'gray', 'OpenAI: Idle');
+    setDot('dataverse', 'gray', 'Dataverse: —');
+    addLog('Disconnected from Teams meeting.', 'warn');
+    toast('Disconnected', 'warn');
+  }
+
+  /* ── Capture ── */
+  function startCapture() {
+    if (!state.connected) { toast('Connect to a meeting first', 'warn'); return; }
+    state.capturing = true;
+    state.startTime = Date.now();
+    document.getElementById('capture-placeholder').style.display = 'none';
+    document.getElementById('capture-overlay').classList.add('show');
+    document.getElementById('btn-start').classList.add('btn-disabled');
+    document.getElementById('btn-stop').classList.remove('btn-disabled');
+    document.getElementById('capture-status-label').textContent = 'ACTIVE';
+    document.getElementById('capture-status-label').style.color = 'var(--green)';
+    setDot('capture', 'green', 'Capture: Active');
+    addLog('Screen capture started. Analyzing every 5s.', 'success');
+    toast('Screen capture started', 'success');
+
+    if (state.autoAnalyze) {
+      triggerAnalysis();
+      state.analyzeTimer = setInterval(triggerAnalysis, 5000);
+    }
+  }
+
+  function stopCapture() {
+    if (!state.capturing) return;
+    state.capturing = false;
+    clearInterval(state.analyzeTimer);
+    document.getElementById('capture-placeholder').style.display = '';
+    document.getElementById('capture-overlay').classList.remove('show');
+    document.getElementById('btn-start').classList.remove('btn-disabled');
+    document.getElementById('btn-stop').classList.add('btn-disabled');
+    document.getElementById('capture-status-label').textContent = 'IDLE';
+    document.getElementById('capture-status-label').style.color = 'var(--dim)';
+    setDot('capture', 'gray', 'Capture: Stopped');
+    addLog('Screen capture stopped.', 'warn');
+    toast('Capture stopped', 'warn');
+  }
+
+  /* ── Analysis ── */
+  const visionSamples = [
+    {
+      topics: ['Sprint Planning','Q1 Roadmap','Backlog'],
+      actions: ['Finalize API design by Friday','Schedule QA review','Update Dataverse tracker'],
+      context: 'Shared Jira board visible. Sprint 12 active with 8 open items.'
+    },
+    {
+      topics: ['Budget Review','Resource Allocation','Timeline'],
+      actions: ['Request headcount approval by EOW','Revise Q2 estimates','Block calendar for stakeholder sync'],
+      context: 'Excel spreadsheet with project cost breakdown shown on screen.'
+    },
+    {
+      topics: ['Design Review','UI Mockups','Figma'],
+      actions: ['Approve mobile layout','Send feedback to design team','Update acceptance criteria'],
+      context: 'Figma prototype open. Component library version 3.2 visible.'
+    },
+    {
+      topics: ['Incident Review','Post-mortem','SLAs'],
+      actions: ['Document root cause in Confluence','Assign corrective actions','Schedule follow-up in 2 weeks'],
+      context: 'Incident timeline slide visible. P1 outage from Nov 14.'
+    },
+  ];
+
+  function triggerAnalysis() {
+    if (!state.capturing) { toast('Start capture first', 'warn'); return; }
+    const sample = visionSamples[state.analysisCount % visionSamples.length];
+    state.analysisCount++;
+
+    document.getElementById('vision-idle').style.display = 'none';
+    const result = document.getElementById('vision-result');
+    result.classList.add('show');
+    result.innerHTML = `
+      <div class="vision-section">
+        <div class="vision-section-title">Detected Topics</div>
+        ${sample.topics.map(t => `<span class="vision-chip">${t}</span>`).join('')}
+      </div>
+      <div class="vision-section">
+        <div class="vision-section-title">Action Items</div>
+        <div class="vision-text">${sample.actions.map(a => `• ${a}`).join('<br>')}</div>
+      </div>
+      <div class="vision-section">
+        <div class="vision-section-title">Screen Context</div>
+        <div class="vision-text">${sample.context}</div>
+      </div>`;
+
+    const now = new Date().toLocaleTimeString();
+    document.getElementById('vision-ts').textContent = 'Last analyzed: ' + now;
+    addLog(`Vision analysis #${state.analysisCount}: detected ${sample.topics.length} topics, ${sample.actions.length} actions.`, 'success');
+  }
+
+  /* ── Settings ── */
+  function toggleAutoAnalyze(el) {
+    state.autoAnalyze = el.checked;
+    if (state.capturing) {
+      clearInterval(state.analyzeTimer);
+      if (el.checked) {
+        state.analyzeTimer = setInterval(triggerAnalysis, 5000);
+        addLog('Auto-analyze enabled (every 5s).', 'info');
+      } else {
+        addLog('Auto-analyze disabled. Use "Analyze Now" manually.', 'warn');
+      }
+    }
+    toast('Auto-analyze ' + (el.checked ? 'enabled' : 'disabled'), el.checked ? 'success' : 'warn');
+  }
+
+  function changeWakeWord(el) {
+    addLog(`Wake word updated to "${el.value}".`, 'info');
+    toast('Wake word: ' + el.value, 'info');
+  }
+
+  function changeModel(el) {
+    addLog(`Vision model switched to ${el.value}.`, 'info');
+    toast('Model: ' + el.value, 'info');
+  }
+
+  function toggleDataverse(el) {
+    if (el.checked && !state.connected) {
+      el.checked = false; toast('Connect to Teams first', 'warn'); return;
+    }
+    addLog('Dataverse sync ' + (el.checked ? 'enabled — action items will auto-sync.' : 'disabled.'), el.checked ? 'success' : 'warn');
+    setDot('dataverse', el.checked ? 'green' : 'yellow', 'Dataverse: ' + (el.checked ? 'Syncing' : 'Standby'));
+    toast('Dataverse sync ' + (el.checked ? 'enabled' : 'disabled'), el.checked ? 'success' : 'warn');
+  }
+
+  /* ── Helpers ── */
+  function setDot(id, color, label) {
+    const dot = document.getElementById('dot-' + id);
+    dot.className = 'dot dot-' + color;
+    document.getElementById('label-' + id).textContent = label;
+  }
+
+  function addLog(msg, type = '') {
+    const list = document.getElementById('log-list');
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const entry = document.createElement('div');
+    entry.className = 'log-entry' + (type ? ' ' + type : '');
+    entry.innerHTML = `<span class="log-time">${now}</span><span class="log-msg">${msg}</span>`;
+    list.appendChild(entry);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log-list').innerHTML = '';
+    addLog('Log cleared.', 'info');
+  }
+
+  function toast(msg, type = 'info') {
+    const area = document.getElementById('toast-area');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    area.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 300);
+    }, 3000);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Route Assist — Case Routing Analysis</title>
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --white: #ffffff;
+    --surface2: #f0f2f5;
+    --border: #d0d7de;
+    --border-light: #e8ecf0;
+    --text: #1f2328;
+    --muted: #57606a;
+    --dim: #8c959f;
+    --blue: #0969da;
+    --blue-soft: #dbeafe;
+    --blue-mid: #bfdbfe;
+    --green: #1a7f37;
+    --green-soft: #dcfce7;
+    --green-mid: #bbf7d0;
+    --yellow: #9a6700;
+    --yellow-soft: #fef9c3;
+    --orange: #c4610a;
+    --orange-soft: #ffedd5;
+    --red: #cf222e;
+    --red-soft: #fee2e2;
+    --purple: #6e40c9;
+    --purple-soft: #ede9fe;
+    --teal: #0e7490;
+    --teal-soft: #cffafe;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { min-height:100%; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); font-size:13px; }
+
+  /* ── Header ── */
+  .header {
+    background:var(--white); border-bottom:1px solid var(--border);
+    padding:14px 24px; display:flex; align-items:center; gap:12px;
+    position:sticky; top:0; z-index:100;
+  }
+  .header-logo {
+    display:flex; align-items:center; gap:8px;
+    font-size:16px; font-weight:700; color:var(--blue);
+  }
+  .header-logo .icon { font-size:20px; }
+  .status-pill {
+    display:flex; align-items:center; gap:6px; padding:5px 12px;
+    background:var(--green-soft); border:1px solid var(--green-mid);
+    border-radius:20px; font-size:11px; font-weight:600; color:var(--green);
+  }
+  .check-icon { font-size:12px; }
+  .header-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .back-link {
+    font-size:11px; color:var(--muted); text-decoration:none;
+    padding:5px 10px; border:1px solid var(--border); border-radius:6px;
+    transition:all .2s;
+  }
+  .back-link:hover { color:var(--blue); border-color:var(--blue); }
+
+  .filter-bar {
+    display:flex; align-items:center; gap:8px;
+    font-size:12px; color:var(--muted);
+  }
+  .filter-btn {
+    padding:5px 12px; border:1px solid var(--border); border-radius:6px;
+    background:var(--white); cursor:pointer; font-size:12px; color:var(--muted);
+    transition:all .2s; font-weight:500;
+  }
+  .filter-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-soft); }
+  .filter-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+  /* ── Main ── */
+  main { max-width:1100px; margin:0 auto; padding:20px 24px; }
+
+  /* ── Overview cards ── */
+  .overview-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  .overview-card {
+    background:var(--white); border:1px solid var(--border); border-radius:8px;
+    padding:14px 16px;
+  }
+  .ov-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+  .ov-value { font-size:24px; font-weight:700; color:var(--text); line-height:1; margin-bottom:4px; }
+  .ov-sub { font-size:11px; color:var(--muted); }
+
+  /* ── Breakdown rows ── */
+  .section-title {
+    font-size:13px; font-weight:600; color:var(--text); margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .breakdown-row { margin-bottom:8px; }
+  .breakdown-header { display:flex; justify-content:space-between; margin-bottom:3px; }
+  .breakdown-name { font-size:12px; color:var(--text); }
+  .breakdown-count { font-size:12px; color:var(--muted); font-weight:500; }
+  .bar-track {
+    height:6px; background:var(--surface2); border-radius:3px; overflow:hidden;
+  }
+  .bar-fill { height:100%; border-radius:3px; }
+
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+  .card {
+    background:var(--white); border:1px solid var(--border); border-radius:8px; padding:16px;
+  }
+
+  /* ── Case cards ── */
+  .cases-header {
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
+  }
+  .confidence-badge {
+    display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600;
+  }
+  .conf-high { background:var(--green-soft); color:var(--green); }
+  .conf-mid  { background:var(--yellow-soft); color:var(--yellow); }
+  .conf-low  { background:var(--red-soft); color:var(--red); }
+
+  .cases-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+  .case-card {
+    background:var(--white); border:1px solid var(--border); border-radius:8px;
+    padding:14px; cursor:pointer; transition:all .2s; position:relative;
+  }
+  .case-card:hover { border-color:var(--blue); box-shadow:0 2px 8px rgba(9,105,218,.12); }
+  .case-card.active { border-color:var(--blue); box-shadow:0 0 0 3px rgba(9,105,218,.12); }
+
+  .case-row1 { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .case-id { font-weight:700; color:var(--text); font-size:12px; }
+  .badge {
+    padding:2px 8px; border-radius:12px; font-size:10px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.4px;
+  }
+  .badge-p1 { background:#fee2e2; color:#991b1b; }
+  .badge-p2 { background:#ffedd5; color:#92400e; }
+  .badge-p3 { background:#fef9c3; color:#713f12; }
+  .badge-p4 { background:#f0fdf4; color:#14532d; }
+  .badge-crit { background:#fce7f3; color:#9d174d; }
+  .badge-high { background:#fee2e2; color:#991b1b; }
+  .badge-med  { background:#ffedd5; color:#92400e; }
+  .badge-low  { background:#ecfdf5; color:#065f46; }
+  .badge-lang { background:var(--blue-soft); color:var(--blue); }
+  .badge-route { background:var(--purple-soft); color:var(--purple); }
+
+  .case-title { font-size:12px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .case-issue { font-size:11px; color:var(--muted); line-height:1.5; margin-bottom:8px; }
+  .case-footer { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .case-route-label { font-size:10px; color:var(--muted); }
+  .case-route-val { font-size:11px; font-weight:600; color:var(--purple); }
+
+  .conf-bar-wrap { display:flex; align-items:center; gap:6px; margin-left:auto; }
+  .conf-bar-track { width:60px; height:5px; background:var(--surface2); border-radius:3px; }
+  .conf-bar-fill { height:100%; border-radius:3px; }
+  .conf-num { font-size:10px; font-weight:700; }
+
+  /* ── Detail panel ── */
+  .detail-panel {
+    display:none; background:var(--white); border:1px solid var(--blue);
+    border-radius:8px; padding:16px; margin-top:10px;
+    animation:fadeDown .2s ease;
+  }
+  .detail-panel.show { display:block; }
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+  .detail-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  .detail-item { }
+  .detail-key { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .detail-val { font-size:13px; font-weight:600; color:var(--text); }
+  .detail-reasoning { margin-top:12px; padding-top:12px; border-top:1px solid var(--border-light); }
+  .reasoning-text { font-size:12px; color:var(--muted); line-height:1.6; }
+
+  /* ── Toast ── */
+  .toast-area { position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:999; }
+  .toast {
+    padding:10px 16px; border-radius:8px; font-size:12px; font-weight:500;
+    border:1px solid; animation:slideIn .25s ease; max-width:300px;
+    box-shadow:0 4px 12px rgba(0,0,0,.12);
+  }
+  .toast-info { background:var(--blue-soft); border-color:var(--blue-mid); color:var(--blue); }
+  .toast-success { background:var(--green-soft); border-color:var(--green-mid); color:var(--green); }
+  @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes slideOut { from { opacity:1; } to { opacity:0; transform:translateX(20px); } }
+  .toast.out { animation:slideOut .25s ease forwards; }
+
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">
+    <span class="icon">🔀</span> Route Assist
+  </div>
+  <div class="status-pill">
+    <span class="check-icon">✓</span> Analysis Complete
+  </div>
+  <div class="header-right">
+    <a href="../index.html#projects" class="back-link">← Portfolio</a>
+    <div class="filter-bar">
+      <span>Filter:</span>
+      <button class="filter-btn active" onclick="filterConf('all',this)">All</button>
+      <button class="filter-btn" onclick="filterConf('high',this)">90–100%</button>
+      <button class="filter-btn" onclick="filterConf('mid',this)">70–89%</button>
+      <button class="filter-btn" onclick="filterConf('low',this)">Below 70%</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- Overview -->
+  <div class="overview-grid">
+    <div class="overview-card">
+      <div class="ov-label">Total Cases</div>
+      <div class="ov-value">1,220</div>
+      <div class="ov-sub">Analyzed in batch</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-label">High Confidence</div>
+      <div class="ov-value" style="color:var(--green);">847</div>
+      <div class="ov-sub">≥90% routing match</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-label">Languages</div>
+      <div class="ov-value">16</div>
+      <div class="ov-sub">Unique languages detected</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-label">Manual Triage ↓</div>
+      <div class="ov-value" style="color:var(--blue);">70%</div>
+      <div class="ov-sub">Reduction in manual routing</div>
+    </div>
+  </div>
+
+  <!-- Breakdowns -->
+  <div class="two-col">
+    <div class="card">
+      <div class="section-title">🌐 Language Breakdown</div>
+      <div id="lang-bars"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">⚠️ Severity Breakdown</div>
+      <div id="sev-bars"></div>
+    </div>
+  </div>
+
+  <!-- Cases -->
+  <div class="cases-header">
+    <div class="section-title" style="margin:0;">
+      📋 Case Routing Results
+      <span id="case-count-label" style="font-size:11px;font-weight:400;color:var(--muted);">Showing all 8 sample cases</span>
+    </div>
+  </div>
+
+  <div class="cases-grid" id="cases-grid"></div>
+</main>
+
+<div class="toast-area" id="toast-area"></div>
+
+<script>
+const langData = [
+  { name:'English (US)',    count:412, pct:34, color:'#0969da' },
+  { name:'Spanish',         count:198, pct:16, color:'#1a7f37' },
+  { name:'French',          count:134, pct:11, color:'#6e40c9' },
+  { name:'German',          count: 97, pct: 8, color:'#c4610a' },
+  { name:'Portuguese (BR)', count: 84, pct: 7, color:'#0e7490' },
+  { name:'Other (11 langs)',count:295, pct:24, color:'#8c959f' },
+];
+
+const sevData = [
+  { name:'Critical', count:  64, pct: 5, color:'#9d174d' },
+  { name:'High',     count: 287, pct:24, color:'#991b1b' },
+  { name:'Medium',   count: 541, pct:44, color:'#92400e' },
+  { name:'Low',      count: 328, pct:27, color:'#065f46' },
+];
+
+const cases = [
+  {
+    id:'CS-10482', priority:'P1', sev:'Critical', lang:'English (US)',
+    title:'Payment gateway timeout — checkout failure',
+    issue:'Customer reports 504 errors on checkout page. All payment methods affected. Revenue impact confirmed.',
+    route:'Tier 3 — Payments Eng', conf:98,
+    confClass:'high',
+    detail:{
+      assignee:'Payments Engineering (SEA Hub)',
+      sla:'4 hours', queue:'CRITICAL-PAY',
+      reasoning:'Pattern matches P1 payment infrastructure failure. Historical routing: 97% T3 Payments. SAP ticket auto-generated. Escalation path: On-call VP notified.',
+    }
+  },
+  {
+    id:'CS-10391', priority:'P2', sev:'High', lang:'Spanish',
+    title:'SSO login broken after password reset',
+    issue:'Usuario no puede iniciar sesión después de restablecer contraseña. Error AADSTS50034.',
+    route:'Identity & Access Team', conf:95,
+    confClass:'high',
+    detail:{
+      assignee:'IAM Team (LATAM)',
+      sla:'8 hours', queue:'IAM-SSO',
+      reasoning:'Azure AD error code AADSTS50034 = user object not found. Language: ES-419 detected. Routed to LATAM IAM team per geo-routing policy.',
+    }
+  },
+  {
+    id:'CS-10437', priority:'P2', sev:'High', lang:'French',
+    title:'API rate limiting — 429 errors depuis ce matin',
+    issue:'Les appels API retournent HTTP 429 depuis 8h. Intégration ERP bloquée.',
+    route:'API Platform Team', conf:93,
+    confClass:'high',
+    detail:{
+      assignee:'API Platform — FR/EU Region',
+      sla:'8 hours', queue:'API-RATE',
+      reasoning:'429 rate limit pattern with ERP integration context. EU region routing per GDPR data residency. FR locale confirmed via content analysis.',
+    }
+  },
+  {
+    id:'CS-10501', priority:'P3', sev:'Medium', lang:'German',
+    title:'Dateianhänge werden nicht hochgeladen',
+    issue:'Beim Hochladen von PDF-Anhängen erscheint Fehler 413. Nur Dateien über 5 MB betroffen.',
+    route:'File Storage Team', conf:91,
+    confClass:'high',
+    detail:{
+      assignee:'Cloud Storage Eng (DE)',
+      sla:'24 hours', queue:'STORAGE-UPLOAD',
+      reasoning:'413 Payload Too Large + file upload context = storage config issue. DE locale. File size threshold 5MB aligns with known nginx config gap — open incident #7834.',
+    }
+  },
+  {
+    id:'CS-10355', priority:'P3', sev:'Medium', lang:'Portuguese (BR)',
+    title:'Dashboard não carrega — tela branca',
+    issue:'Página do dashboard retorna tela em branco após login. Afeta todos os usuários do cliente.',
+    route:'Frontend Platform', conf:88,
+    confClass:'mid',
+    detail:{
+      assignee:'Frontend Platform (BR)',
+      sla:'24 hours', queue:'FE-RENDER',
+      reasoning:'White screen + post-login = likely JS bundle or hydration error. BR locale. Medium confidence: could also be CDN issue — added note for T2 to check Cloudflare.',
+    }
+  },
+  {
+    id:'CS-10412', priority:'P3', sev:'Medium', lang:'English (US)',
+    title:'Scheduled reports not delivering via email',
+    issue:'Weekly summary reports stopped sending as of 11/12. SMTP logs show job queued but not dispatched.',
+    route:'Notifications & Email', conf:85,
+    confClass:'mid',
+    detail:{
+      assignee:'Notifications Eng',
+      sla:'24 hours', queue:'NOTIFY-EMAIL',
+      reasoning:'SMTP queue stall pattern. Similar to incident #7201 (Nov 8). Possible SendGrid quota hit. 85% confidence — data also fits background job failure path.',
+    }
+  },
+  {
+    id:'CS-10480', priority:'P4', sev:'Low', lang:'English (US)',
+    title:'User cannot update profile photo',
+    issue:'Avatar upload succeeds but image does not display. Cache clear does not resolve.',
+    route:'Media & CDN Team', conf:72,
+    confClass:'mid',
+    detail:{
+      assignee:'Media Services (Tier 2)',
+      sla:'72 hours', queue:'MEDIA-UPLOAD',
+      reasoning:'Image display failure post-upload = likely CDN cache invalidation miss. Lower confidence (72%) — could also be image processing pipeline. Flagged for dual-queue.',
+    }
+  },
+  {
+    id:'CS-10398', priority:'P4', sev:'Low', lang:'Spanish',
+    title:'No llegan notificaciones push en móvil',
+    issue:'Las notificaciones push no se reciben en iOS 17. Android funcionando correctamente.',
+    route:'Mobile Platform (iOS)', conf:61,
+    confClass:'low',
+    detail:{
+      assignee:'Mobile Engineering — iOS',
+      sla:'5 days', queue:'MOBILE-PUSH-IOS',
+      reasoning:'iOS-specific push failure aligns with iOS 17 APNs token refresh issue (known). 61% confidence — overlaps with account notification preferences bug. Manual review recommended.',
+    }
+  },
+];
+
+/* ── Render bars ── */
+function renderBars(containerId, data) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = data.map(d => `
+    <div class="breakdown-row">
+      <div class="breakdown-header">
+        <span class="breakdown-name">${d.name}</span>
+        <span class="breakdown-count">${d.count.toLocaleString()}</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${d.pct}%;background:${d.color};"></div>
+      </div>
+    </div>`).join('');
+}
+
+/* ── Render cases ── */
+let activeCase = null;
+let currentFilter = 'all';
+
+function renderCases(filter) {
+  const filtered = filter === 'all' ? cases
+    : filter === 'high' ? cases.filter(c => c.conf >= 90)
+    : filter === 'mid'  ? cases.filter(c => c.conf >= 70 && c.conf < 90)
+    : cases.filter(c => c.conf < 70);
+
+  document.getElementById('case-count-label').textContent =
+    `Showing ${filtered.length} case${filtered.length!==1?'s':''}`;
+
+  const grid = document.getElementById('cases-grid');
+  grid.innerHTML = filtered.map((c, i) => {
+    const confColor = c.conf >= 90 ? '#1a7f37' : c.conf >= 70 ? '#9a6700' : '#cf222e';
+    const sevBadge = { Critical:'badge-crit', High:'badge-high', Medium:'badge-med', Low:'badge-low' }[c.sev] || 'badge-med';
+    const priMap = { P1:'badge-p1', P2:'badge-p2', P3:'badge-p3', P4:'badge-p4' };
+    return `
+    <div class="case-card ${c.confClass === 'low' ? '' : ''}" id="card-${c.id}" onclick="selectCase('${c.id}')">
+      <div class="case-row1">
+        <span class="case-id">${c.id}</span>
+        <span class="badge ${priMap[c.priority]||'badge-p3'}">${c.priority}</span>
+        <span class="badge ${sevBadge}">${c.sev}</span>
+        <span class="badge badge-lang">${c.lang}</span>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar-track">
+            <div class="conf-bar-fill" style="width:${c.conf}%;background:${confColor};"></div>
+          </div>
+          <span class="conf-num" style="color:${confColor};">${c.conf}%</span>
+        </div>
+      </div>
+      <div class="case-title">${c.title}</div>
+      <div class="case-issue">${c.issue}</div>
+      <div class="case-footer">
+        <span class="case-route-label">Route To →</span>
+        <span class="case-route-val">${c.route}</span>
+      </div>
+      <div class="detail-panel" id="detail-${c.id}">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-key">Assignee</div>
+            <div class="detail-val">${c.detail.assignee}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-key">SLA Target</div>
+            <div class="detail-val">${c.detail.sla}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-key">Queue</div>
+            <div class="detail-val">${c.detail.queue}</div>
+          </div>
+        </div>
+        <div class="detail-reasoning">
+          <div class="detail-key" style="margin-bottom:6px;">AI Routing Reasoning</div>
+          <div class="reasoning-text">${c.detail.reasoning}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectCase(id) {
+  const card = document.getElementById('card-' + id);
+  const detail = document.getElementById('detail-' + id);
+
+  if (activeCase === id) {
+    detail.classList.remove('show');
+    card.classList.remove('active');
+    activeCase = null;
+    return;
+  }
+
+  // Close previous
+  if (activeCase) {
+    document.getElementById('detail-' + activeCase)?.classList.remove('show');
+    document.getElementById('card-' + activeCase)?.classList.remove('active');
+  }
+
+  detail.classList.add('show');
+  card.classList.add('active');
+  activeCase = id;
+
+  const c = cases.find(x => x.id === id);
+  toast(`Routing: ${c.route} — ${c.conf}% confidence`, 'info');
+}
+
+function filterConf(level, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = level;
+  activeCase = null;
+  renderCases(level);
+  const label = { all:'all cases', high:'high confidence (≥90%)', mid:'medium confidence (70–89%)', low:'low confidence (<70%)' }[level];
+  toast('Showing ' + label, 'info');
+}
+
+function toast(msg, type = 'info') {
+  const area = document.getElementById('toast-area');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  area.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('out');
+    setTimeout(() => t.remove(), 300);
+  }, 3000);
+}
+
+/* ── Init ── */
+renderBars('lang-bars', langData);
+renderBars('sev-bars', sevData);
+renderCases('all');
+</script>
+</body>
+</html>
